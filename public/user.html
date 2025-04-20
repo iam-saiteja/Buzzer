@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chalana Chithram - Participant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f4f9;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+        }
+
+        .join-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-group input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .join-button {
+            padding: 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .join-button:hover {
+            background-color: #2980b9;
+        }
+
+        #buzzer {
+            width: 300px;
+            height: 300px;
+            background-color: #ff4136;
+            border-radius: 50%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            margin: 20px auto;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transition: transform 0.2s ease;
+        }
+
+        #buzzer:active {
+            transform: scale(0.95);
+        }
+
+        #buzzer.disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .timer-display {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 32px;
+    font-weight: bold;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 10px 20px;
+    border-radius: 10px;
+}
+
+
+        #game-status {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .results-table th, 
+        .results-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="join-section">
+        <div class="join-section">
+            <div class="input-group">
+                <input type="text" id="game-code-input" placeholder="Game Code" maxlength="6">
+            </div>
+            <div class="input-group">
+                <input type="text" id="username-input" placeholder="Your Username" maxlength="15">
+            </div>
+            <button class="join-button" onclick="joinGame()">Join Game</button>
+            <p id="error-message" class="error-message"></p>
+        </div>
+    </div>
+
+    <div class="container hidden" id="game-section">
+        <div id="buzzer" onclick="pressBuzzer()">
+            <div class="timer-display" id="timer-display"></div>
+            <span style="color: white; font-size: 24px; font-weight: bold;">BUZZ</span>
+        </div>
+
+        <div id="game-status">Waiting for game to start...</div>
+
+        <table class="results-table" id="results-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Username</th>
+                    <th>Buzz Time (seconds)</th>
+                </tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+        </table>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let currentGameCode = null;
+        let username = '';
+        let canBuzz = false;
+        let timerInterval = null;
+
+        function joinGame() {
+            const gameCodeInput = document.getElementById('game-code-input');
+            const usernameInput = document.getElementById('username-input');
+            const errorMessage = document.getElementById('error-message');
+            
+            currentGameCode = gameCodeInput.value.trim().toUpperCase();
+            username = usernameInput.value.trim();
+
+            // Validation
+            if (!currentGameCode) {
+                errorMessage.textContent = 'Please enter game code';
+                return;
+            }
+
+            if (!username) {
+                errorMessage.textContent = 'Please enter username';
+                return;
+            }
+
+            // Attempt to join game
+            socket.emit('join_game', { 
+                gameCode: currentGameCode, 
+                username: username,
+                isAdmin: false 
+            });
+        }
+
+        function pressBuzzer() {
+            if (canBuzz) {
+                socket.emit('buzz', currentGameCode);
+            }
+        }
+
+        function startTimer(duration) {
+            const timerDisplay = document.getElementById('timer-display');
+            let timeLeft = duration;
+
+            // Clear any existing interval
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+
+            timerInterval = setInterval(() => {
+                timerDisplay.textContent = `${timeLeft}s`;
+                timeLeft--;
+
+                if (timeLeft < 0) {
+                    clearInterval(timerInterval);
+                    timerDisplay.textContent = '';
+                }
+            }, 1000);
+        }
+
+        // Socket Event Listeners
+        socket.on('join_success', () => {
+            document.getElementById('join-section').classList.add('hidden');
+            document.getElementById('game-section').classList.remove('hidden');
+        });
+
+        socket.on('join_error', (errorMsg) => {
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.textContent = errorMsg;
+        });
+
+        socket.on('buzzer_started', (data) => {
+            canBuzz = true;
+            const buzzer = document.getElementById('buzzer');
+            buzzer.style.display = 'flex';
+            buzzer.classList.remove('disabled');
+            
+            document.getElementById('game-status').textContent = 
+                `Round ${data.roundNumber} Started! Buzz within ${data.duration} seconds.`;
+            
+            // Start timer
+            startTimer(data.duration);
+            
+            // Hide previous results
+            document.getElementById('results-table').style.display = 'none';
+        });
+
+        socket.on('buzz_recorded', (time) => {
+            canBuzz = false;
+            const buzzer = document.getElementById('buzzer');
+            buzzer.classList.add('disabled');
+            
+            document.getElementById('game-status').textContent = 
+                `You buzzed in ${time} seconds!`;
+        });
+
+        socket.on('buzzer_ended', (data) => {
+            canBuzz = false;
+            const buzzer = document.getElementById('buzzer');
+            buzzer.style.display = 'none';
+            buzzer.classList.add('disabled');
+            
+            document.getElementById('game-status').textContent = 'Buzzer time ended.';
+
+            // Clear timer
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            document.getElementById('timer-display').textContent = '';
+
+            // Update results table
+            const resultsBody = document.getElementById('results-body');
+            const resultsTable = document.getElementById('results-table');
+            resultsBody.innerHTML = '';
+
+            data.results.forEach((result, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${result.username}</td>
+                    <td>${(result.time / 1000).toFixed(3)}</td>
+                `;
+                resultsBody.appendChild(row);
+            });
+
+            // Show results table
+            resultsTable.style.display = 'table';
+        });
+
+        socket.on('user_removed', () => {
+            alert('You have been removed from the game by the admin');
+            
+            // Reset UI
+            document.getElementById('join-section').classList.remove('hidden');
+            document.getElementById('game-section').classList.add('hidden');
+            
+            // Clear inputs
+            document.getElementById('game-code-input').value = '';
+            document.getElementById('username-input').value = '';
+            document.getElementById('error-message').textContent = '';
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chalana Chithram - Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        #logoutBtn {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+#logoutBtn:hover {
+    background-color: #cc0000;
+}
+
+
+        .admin-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .game-code {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .total-connected {
+            font-size: 18px;
+            color: #34495e;
+        }
+
+        .admin-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-weight: bold;
+        }
+
+        .btn-create {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-start {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .btn-stop {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .participants-section {
+            margin-bottom: 20px;
+        }
+
+        .participant-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f1f2f6;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        .remove-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th, 
+        .results-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .timer-display {
+            font-size: 24px;
+            color: #e74c3c;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <button id="logoutBtn">Logout</button>
+    <div id="admin-panel" class="admin-container hidden">
+        <div class="game-header">
+            <div class="game-code">
+                Game Code: <span id="game-code-display">-</span>
+            </div>
+            <div class="total-connected">
+                Connected: <span id="total-connected">0</span>
+            </div>
+        </div>
+
+        <div class="admin-controls">
+            <button class="btn btn-create" onclick="createGame()">Create Game</button>
+            <button class="btn btn-start" id="start-buzzer-btn" onclick="startBuzzer()" disabled>Start Buzzer</button>
+            <button class="btn btn-stop" id="stop-buzzer-btn" onclick="stopBuzzer()" disabled>Stop Buzzer</button>
+        </div>
+
+        <div class="timer-display" id="timer-display"></div>
+
+        <div class="participants-section">
+            <h3>Participants</h3>
+            <div id="participants-list"></div>
+        </div>
+
+        <div class="results-section">
+            <h3>Buzz Results</h3>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Username</th>
+                        <th>Buzz Time (seconds)</th>
+                    </tr>
+                </thead>
+                <tbody id="results-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Replace the existing socket initialization with this dynamic approach
+const socketUrl = window.location.origin;
+const socket = io(socketUrl);
+        let currentGameCode = null;
+        let timerInterval = null;
+
+        // Create Game Function
+        function createGame() {
+            socket.emit('create_game');
+        }
+
+        // Start Buzzer Function
+        function startBuzzer() {
+            if (currentGameCode) {
+                socket.emit('start_buzzer', currentGameCode);
+            }
+        }
+
+        // Stop Buzzer Function
+        function stopBuzzer() {
+            if (currentGameCode) {
+                socket.emit('stop_buzzer', currentGameCode);
+            }
+        }
+
+        // Remove User Function
+        function removeUser(socketId) {
+            if (currentGameCode) {
+                socket.emit('remove_user', { 
+                    gameCode: currentGameCode, 
+                    socketId: socketId 
+                });
+            }
+        }
+
+        // Timer Function
+        function startTimer(duration) {
+            const timerDisplay = document.getElementById('timer-display');
+            let timeLeft = duration;
+
+            // Clear any existing interval
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+
+            timerInterval = setInterval(() => {
+                timerDisplay.textContent = `Time Remaining: ${timeLeft} seconds`;
+                timeLeft--;
+
+                if (timeLeft < 0) {
+                    clearInterval(timerInterval);
+                    timerDisplay.textContent = 'Buzzer Closed';
+                }
+            }, 1000);
+        }
+
+        // Socket Event Listeners
+        socket.on('game_created', (gameCode) => {
+            currentGameCode = gameCode;
+            document.getElementById('game-code-display').textContent = gameCode;
+            document.getElementById('start-buzzer-btn').disabled = false;
+            document.getElementById('total-connected').textContent = '0';
+            
+            // Clear participants and results
+            document.getElementById('participants-list').innerHTML = '';
+            document.getElementById('results-body').innerHTML = '';
+        });
+
+        socket.on('participant_joined', (participant) => {
+            const participantsList = document.getElementById('participants-list');
+            const participantDiv = document.createElement('div');
+            participantDiv.className = 'participant-item';
+            participantDiv.innerHTML = `
+                <span>${participant.username}</span>
+                <button class="remove-btn" onclick="removeUser('${participant.socketId}')">Remove</button>
+            `;
+            participantDiv.id = `participant-${participant.socketId}`;
+            participantsList.appendChild(participantDiv);
+
+            // Update total connected
+            document.getElementById('total-connected').textContent = participant.totalConnected;
+        });
+
+        socket.on('participant_left', (data) => {
+            // Remove participant from list
+            const participantElement = document.getElementById(`participant-${data.socketId}`);
+            if (participantElement) {
+                participantElement.remove();
+            }
+
+            // Update total connected
+            document.getElementById('total-connected').textContent = data.totalConnected;
+        });
+
+        socket.on('buzzer_started', (data) => {
+            startTimer(data.duration);
+            document.getElementById('results-body').innerHTML = '';
+            
+            // Disable start button, enable stop button
+            document.getElementById('start-buzzer-btn').disabled = true;
+            document.getElementById('stop-buzzer-btn').disabled = false;
+        });
+
+        socket.on('admin_buzz_results', (results) => {
+            const resultsBody = document.getElementById('results-body');
+            resultsBody.innerHTML = '';
+
+            results.forEach((result, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${result.username}</td>
+                    <td>${(result.time / 1000).toFixed(3)}</td>
+                `;
+                resultsBody.appendChild(row);
+            });
+        });
+
+        socket.on('buzzer_ended', (data) => {
+            // Clear timer
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            document.getElementById('timer-display').textContent = 'Buzzer Closed';
+            
+            // Enable start button, disable stop button
+            document.getElementById('start-buzzer-btn').disabled = false;
+            document.getElementById('stop-buzzer-btn').disabled = true;
+
+            // Update final results
+            const resultsBody = document.getElementById('results-body');
+            resultsBody.innerHTML = '';
+
+            data.results.forEach((result, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${result.username}</td>
+                    <td>${(result.time / 1000).toFixed(3)}</td>
+                `;
+                resultsBody.appendChild(row);
+            });
+        });
+    </script>
+<script>
+    (function() {
+        // Check for admin access token
+        function validateAdminAccess() {
+            const storedToken = localStorage.getItem('adminAccessToken');
+
+            if (!storedToken) {
+                // No token exists, redirect to login
+                deleteGameSession();
+                redirectToLogin();
+                return false;
+            }
+
+            try {
+                const tokenData = JSON.parse(storedToken);
+
+                // Ensure token has a valid format
+                if (!tokenData.token || tokenData.source !== 'adminLogin') {
+                    // Invalid token, force re-login
+                    localStorage.removeItem('adminAccessToken');
+                    deleteGameSession();
+                    redirectToLogin();
+                    return false;
+                }
+
+                // Token is valid
+                return true;
+            } catch (error) {
+                // Corrupted token, force re-login
+                localStorage.removeItem('adminAccessToken');
+                deleteGameSession();
+                redirectToLogin();
+                return false;
+            }
+        }
+
+        // Function to notify the server to delete the game session
+        function deleteGameSession() {
+            fetch('/delete-session', { method: 'POST' })  // Send request to delete session
+                .then(response => response.json())
+                .then(data => console.log('Session deleted:', data))
+                .catch(error => console.error('Error deleting session:', error));
+        }
+
+        // Redirect function
+        function redirectToLogin() {
+            alert('Unauthorized access. Please login.');
+            window.location.href = 'adminlogin.html';
+        }
+
+        // Logout functionality
+        window.logoutAdmin = function() {
+            localStorage.removeItem('adminAccessToken');
+            deleteGameSession();
+            window.location.href = 'adminlogin.html';
+        }
+
+        // Ensure session is deleted when the admin closes the page
+        window.addEventListener('beforeunload', deleteGameSession);
+
+        // Validate access immediately
+        if (!validateAdminAccess()) {
+            return; // Stop further script execution
+        }
+
+    })();
+</script>
+
+<script>
+  document.getElementById("logoutBtn").addEventListener("click", function() {
+    // Remove admin access token from localStorage
+    localStorage.removeItem("adminAccessToken");
+
+    // Notify the server to delete the session
+    fetch('/delete-session', { method: 'POST' })
+      .then(response => response.json())
+      .then(data => {
+        console.log("Session deleted:", data);
+        // Redirect to the login page after session deletion
+        window.location.href = "adminlogin.html";
+      })
+      .catch(error => {
+        console.error("Error deleting session:", error);
+        // Redirect to login even if session deletion fails
+        window.location.href = "adminlogin.html";
+      });
+  });
+</script>
+
+
+
+
+
+</body>
+</html>

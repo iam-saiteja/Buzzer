@@ -1,0 +1,21 @@
+{
+  "name": "buzzer-system",
+  "version": "1.0.0",
+  "description": "Chalana Chithram Buzzer System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:network": "HOST=0.0.0.0 node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "open": "^10.1.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.12"
+  }
+}

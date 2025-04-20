@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Login</title>
+    <script src="js/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .login-container {
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            padding: 30px;
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            transition: all 0.3s ease;
+        }
+
+        .login-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .login-btn {
+            margin-top: 20px;
+            padding: 12px;
+            width: 100%;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 14px rgba(0,0,0,0.2);
+        }
+
+        .error-message {
+            color: #e74c3c;
+            margin-top: 15px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .error-message.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Admin Login</h2>
+        <input 
+            type="password" 
+            id="password" 
+            class="password-input" 
+            placeholder="Enter Password"
+            onkeypress="handleKeyPress(event)"
+        >
+        <button class="login-btn" onclick="checkPassword()">Login</button>
+        <p id="error-message" class="error-message">Incorrect Password</p>
+    </div>
+
+    <script>
+        const ADMIN_CREDENTIALS = {
+            username: 'admin',
+            passwordHash: 'c77d1532db036048e761e84583ff6e6b5437a1d909afb18dbdd54e6be55a195b'
+        };
+    
+        function checkPassword() {
+            const passwordInput = document.getElementById('password');
+            const errorMessage = document.getElementById('error-message');
+            const password = passwordInput.value.trim();
+    
+            // Hash the entered password
+            const enteredHash = CryptoJS.SHA256(password).toString(CryptoJS.enc.Hex);
+    
+            if (enteredHash === ADMIN_CREDENTIALS.passwordHash) {
+                // Store a proper admin session token
+                localStorage.setItem('adminAccessToken', JSON.stringify({
+                    token: CryptoJS.lib.WordArray.random(128/8).toString(),
+                    source: 'adminLogin'
+                }));
+    
+                // Redirect to admin page
+                window.location.href = 'admin.html';
+            } else {
+                errorMessage.classList.add('show');
+                passwordInput.value = ''; // Clear password
+                
+                setTimeout(() => {
+                    errorMessage.classList.remove('show');
+                }, 3000);
+            }
+        }
+        
+        function handleKeyPress(event) {
+            // Check if Enter key was pressed
+            if (event.key === "Enter") {
+                checkPassword();
+            }
+        }
+    </script>
+
+</body>
+</html>
