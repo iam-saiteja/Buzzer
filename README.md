@@ -101,6 +101,12 @@ Once the server is running, you can access the following:
 
 Feel free to fork the repository and contribute! Pull requests are welcome.
 
+## Author
+
+**Thanniru Sai Teja**
+*   Email: iamsaitejathanniru@gmail.com
+*   LinkedIn: [https://www.linkedin.com/in/thannirusaiteja](https://www.linkedin.com/in/thannirusaiteja)
+
 ## License
 
-[Consider adding a license here, e.g., MIT, Apache 2.0, etc.]
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
